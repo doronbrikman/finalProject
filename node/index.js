@@ -35,9 +35,10 @@ socket.on('connect', function(socket) {
     console.log('Connected!');
 });
 
-
 socket.on('percentile', function (data) {
     console.log(data);
+
+    histogram.changeResolution(data.percentile);
 });
 
 app.use(responseTime(function (req, res, time) {

@@ -37,8 +37,31 @@
             return hist;
         }
 
+        function clearHist() {
+            hist = _.fill(hist, 0);
+        }
+
+        function getRange(index) {
+            var jumps = (maxValue - minValue) / numOfRanges;
+
+            var max = jumps * index;
+            var min = max - jumps;
+
+            return { max: max, min: min };
+        }
+
+        function changeResolution(newRange) {
+            maxValue = newRange.max;
+            minValue = newRange.min;
+
+            // restart the histogram
+            clearHist();
+        }
+
         return {
             submitResponse: submitResponse,
+            getRange: getRange,
+            changeResolution: changeResolution,
             finalObj: finalObj
         };
     }
