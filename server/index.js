@@ -3,10 +3,12 @@
 'use strict';
 
 var app = require('express')(),
-    bodyParser = require('body-parser');
+    server = require('http').Server(app),
+    bodyParser = require('body-parser'),
+    io = require('socket.io')(server);
 
 var PORT = 8080;
-var nodeNumber = 3;
+var nodeNumber = 1;
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({extended: true}));
@@ -24,6 +26,13 @@ var nodeHists = {
         }
     }
 };
+
+var mySocket;
+
+io.on('connection', function (socket) {
+    mySocket = socket;
+    console.log('Connected!');
+});
 
 app.post('/', function (req, res) {
     var result = req.body;
@@ -46,7 +55,7 @@ app.post('/', function (req, res) {
             for (var j = 0; j < nodeHists.superArray.length; j++) {
                 adder += nodeHists.superArray[j];
 
-                if (adder > sum * 0.99) {
+                if (adder > sum * 0.60) {
                     percentile = j + 1;
                 }
             }
@@ -57,11 +66,13 @@ app.post('/', function (req, res) {
 
     console.log(result.nodePort + ": " + result.histogram);
 
-    if (percentile)
+    if (percentile) {
+        mySocket.emit("percentile", {percentile: percentile});
         console.log("The percentile is " + percentile);
+    }
 
     res.send();
 });
 
-app.listen(PORT);
+server.listen(PORT);
 console.log('Running on http://localhost:' + PORT);
