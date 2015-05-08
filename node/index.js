@@ -10,23 +10,20 @@ var app = require('express')(),
 
 //var arguments = process.argv.splice(2);
 
-var address2 = process.env.MASTER_PORT_8080_TCP_ADDR;
-var port2 = process.env.MASTER_PORT_8080_TCP_PORT;
-
-var logs = [];
+var address2 = process.env.MASTER_PORT_8080_TCP_ADDR || "localhost";
+var port2 = process.env.MASTER_PORT_8080_TCP_PORT || 8080;
 
 var options = {
-    host: address2,
+    host: address2 || "localhost",
     path: '/',
-    port: port2,
-    method: 'POST',
+    port: port2 || 8080,
+    method: "POST",
     headers: {
         "Content-Type": "application/json"
     }
 };
 
 var PORT = 8000; // arguments[0] || 8000;
-//var app = express();
 
 var socket = io.connect("http://" + address2 + ":" + port2, {reconnect: true});
 
@@ -36,13 +33,13 @@ socket.on('connect', function(socket) {
 });
 
 socket.on('percentile', function (data) {
-    console.log(data);
+    var range = histogram.getRange(data.percentile);
+    histogram.changeResolution(range);
 
-    histogram.changeResolution(data.percentile);
+    console.log("max:" + range.max + " | min: " + range.min);
 });
 
 app.use(responseTime(function (req, res, time) {
-    logs.push(time);
     histogram.submitResponse(time);
 }));
 
@@ -51,7 +48,7 @@ app.get('/', function (req, res) {
 });
 
 function estimatePi() {
-    var n = 100000000, inside = 0, i, x, y;
+    var n = getRandomArbitrary(1000000, 100000000), inside = 0, i, x, y;
 
     for ( i = 0; i < n; i++ ) {
         x = Math.random();
@@ -61,6 +58,10 @@ function estimatePi() {
     }
 
     return 4 * inside / n;
+
+    function getRandomArbitrary(min, max) {
+        return Math.random() * (max - min) + min;
+    }
 }
 
 setInterval(function () {
@@ -72,5 +73,3 @@ setInterval(function () {
 
 app.listen(PORT);
 console.log('Running on http://localhost:' + PORT);
-
-console.log(address2,port2);

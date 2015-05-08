@@ -5,7 +5,8 @@
 var app = require('express')(),
     server = require('http').Server(app),
     bodyParser = require('body-parser'),
-    io = require('socket.io')(server);
+    io = require('socket.io')(server),
+    mySocket = new require('./socket')();
 
 var PORT = 8080;
 var nodeNumber = 1;
@@ -27,10 +28,8 @@ var nodeHists = {
     }
 };
 
-var mySocket;
-
 io.on('connection', function (socket) {
-    mySocket = socket;
+    mySocket.addSocket(socket);
     console.log('Connected!');
 });
 
@@ -67,7 +66,12 @@ app.post('/', function (req, res) {
     console.log(result.nodePort + ": " + result.histogram);
 
     if (percentile) {
-        mySocket.emit("percentile", {percentile: percentile});
+        var array = mySocket.getSockets();
+
+        for (var h = 0; h < array.length; h++) {
+            array[h].emit("percentile", {percentile: percentile});
+        }
+
         console.log("The percentile is " + percentile);
     }
 
