@@ -24,7 +24,7 @@
             var jumps = (maxValue - minValue) / numOfRanges;
 
             for (var i = 0; i < numOfRanges; i++) {
-                if (time < (jumps + minValue) * (i + 1)) {
+                if (time < minValue + jumps * (i + 1) || i === numOfRanges - 1) {
                     hist[i]++;
                     break;
                 }
@@ -43,11 +43,30 @@
 
         // get the new range for the histogram, by index from the server
         function getRange(index) {
-            var jumps = (maxValue - minValue) / numOfRanges;
+            var max = maxValue,
+                min = minValue,
+                jumps = (maxValue - minValue) / numOfRanges;
 
-            var max = minValue + (jumps * (index));
-            var min = max - jumps;
+            if (index === 1) {
+                if (min !== 0) {
+                    min -= jumps;
+                }
 
+                console.log("min: " + max, min, jumps);
+                return {max: max, min: min};
+            }
+
+            if (index === numOfRanges) {
+                max += jumps;
+
+                console.log("max: " + max, min, jumps);
+                return {max: max, min: min};
+            }
+
+            max = minValue + (jumps * (index));
+            min = max - jumps;
+
+            console.log("regular: " + max, min, jumps);
             return {max: max, min: min};
         }
 

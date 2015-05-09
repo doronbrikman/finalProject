@@ -33,6 +33,9 @@ io.on('connection', function (socket) {
     console.log('Connected!');
 });
 
+var count = 0;
+var lastPercentile;
+
 app.post('/', function (req, res) {
     var result = req.body;
 
@@ -56,7 +59,16 @@ app.post('/', function (req, res) {
 
                 if (adder > sum * 0.60) {
                     percentile = j + 1;
+                    break;
                 }
+            }
+
+            if (lastPercentile === percentile) {
+                count++;
+            }
+            else {
+                lastPercentile = percentile;
+                count = 0;
             }
 
             nodeHists.clearNodes();
@@ -66,13 +78,16 @@ app.post('/', function (req, res) {
     console.log(result.nodePort + ": " + result.histogram);
 
     if (percentile) {
-        var array = mySocket.getSockets();
-
-        for (var h = 0; h < array.length; h++) {
-            array[h].emit("percentile", {percentile: percentile});
-        }
-
         console.log("The percentile is " + percentile);
+
+        if (count === 10) {
+            var array = mySocket.getSockets();
+            count = 0;
+
+            for (var h = 0; h < array.length; h++) {
+                array[h].emit("percentile", {percentile: percentile});
+            }
+        }
     }
 
     res.send();
