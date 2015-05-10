@@ -6,7 +6,8 @@ var app = require('express')(),
     server = require('http').Server(app),
     bodyParser = require('body-parser'),
     io = require('socket.io')(server),
-    mySocket = new require('./socket')();
+    mySocket = new require('./socket')(),
+    timeseries = require("timeseries-analysis");
 
 var PORT = 8080;
 var nodeNumber = 1;
@@ -36,8 +37,35 @@ io.on('connection', function (socket) {
 var count = 0;
 var lastPercentile;
 
+var rangesTimeArray = [];
+
 app.post('/', function (req, res) {
     var result = req.body;
+
+    rangesTimeArray.push({date: new Date(), max: result.ranges.max, min: result.ranges.min});
+
+    var maxAnalysis = new timeseries.main(timeseries.adapter.fromDB(rangesTimeArray, {
+        date: 'date',
+        value: 'max'
+    }));
+
+    var minAnalysis = new timeseries.main(rangesTimeArray, {
+        date: 'date',
+        value: 'min'
+    });
+
+    maxAnalysis.smoother({period: 4}).save('smoothed');
+    var bestSettings = maxAnalysis.regression_forecast_optimize();
+
+    console.log(bestSettings);
+
+    maxAnalysis.sliding_regression_forecast({
+        sample: bestSettings.sample,
+        degree: bestSettings.degree,
+        method: bestSettings.method
+    });
+
+    console.log(maxAnalysis);
 
     if (!nodeHists.nodes[result.nodePort]) {
 

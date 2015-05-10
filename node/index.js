@@ -67,7 +67,7 @@ function estimatePi() {
 setInterval(function () {
     console.log('send');
     var req = http.request(options);
-    req.write(JSON.stringify({nodePort: PORT, histogram: histogram.finalObj()}));
+    req.write(JSON.stringify({nodePort: PORT, histogram: histogram.finalObj(), ranges: histogram.getRange()}));
     req.end();
 }, 5000);
 

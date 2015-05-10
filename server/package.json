@@ -12,6 +12,7 @@
     "dockerode": "^2.1.2",
     "express": "^4.12.3",
     "node-container": "^0.2.0",
-    "socket.io": "^1.3.5"
+    "socket.io": "^1.3.5",
+    "timeseries-analysis": "^1.0.12"
   }
 }

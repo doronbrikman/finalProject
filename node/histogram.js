@@ -47,6 +47,11 @@
                 min = minValue,
                 jumps = (maxValue - minValue) / numOfRanges;
 
+            // send the current ranges
+            if (!index) {
+                return {max: max, min: min};
+            }
+
             if (index === 1) {
                 if (min !== 0) {
                     min -= jumps;
