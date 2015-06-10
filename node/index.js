@@ -28,8 +28,13 @@ var PORT = 8000; // arguments[0] || 8000;
 var socket = io.connect("http://" + address2 + ":" + port2, {reconnect: true});
 
 // Add a connect listener
-socket.on('connect', function(socket) {
+socket.on('connect', function (socket) {
     console.log('Connected!');
+});
+
+socket.on('check', function (data) {
+    console.log(data);
+    socket.emit('node', {my: 'data'});
 });
 
 socket.on('percentile', function (data) {
@@ -39,7 +44,15 @@ socket.on('percentile', function (data) {
     console.log("max:" + range.max + " | min: " + range.min);
 });
 
+var timeSum = 0;
+var countTime = 0;
+var lastTime = 0;
+
 app.use(responseTime(function (req, res, time) {
+    timeSum += time;
+    countTime++;
+    lastTime = time;
+
     histogram.submitResponse(time);
 }));
 
@@ -48,12 +61,12 @@ app.get('/', function (req, res) {
 });
 
 function estimatePi() {
-    var n = getRandomArbitrary(1000000, 100000000), inside = 0, i, x, y;
+    var n = getRandomArbitrary(100000, 10000000), inside = 0, i, x, y;
 
-    for ( i = 0; i < n; i++ ) {
+    for (i = 0; i < n; i++) {
         x = Math.random();
         y = Math.random();
-        if ( Math.sqrt(x * x + y * y) <= 1 )
+        if (Math.sqrt(x * x + y * y) <= 1)
             inside++;
     }
 
@@ -64,12 +77,34 @@ function estimatePi() {
     }
 }
 
+var count = 0;
+
 setInterval(function () {
     console.log('send');
     var req = http.request(options);
-    req.write(JSON.stringify({nodePort: PORT, histogram: histogram.finalObj(), ranges: histogram.getRange()}));
+    //req.write(JSON.stringify({nodePort: PORT, histogram: histogram.finalObj(), ranges: histogram.getRange()}));
+
+    if (count < 10) {
+        req.write(JSON.stringify({
+            nodePort: PORT,
+            timeAvg: timeSum / countTime,
+            lastTime: lastTime,
+            histogram: histogram.finalObj(),
+            ranges: histogram.getRange()
+        }));
+    } else {
+        req.write(JSON.stringify({
+            nodePort: PORT,
+            histogram: histogram.finalObj(),
+            ranges: {max: 1810 + (count.toString().slice(0, 1) * 10), min: 200}
+        }));
+    }
+    //count++;
+    timeSum = 0;
+    countTime = 0;
+
     req.end();
-}, 5000);
+}, 1000);
 
 app.listen(PORT);
 console.log('Running on http://localhost:' + PORT);

@@ -7,25 +7,55 @@
         if (!options) {
             options = {
                 ranges: 10,
-                maxValue: 2000,
-                minValue: 200
+                maxValue: 1000,
+                minValue: 30,
+                mode: 'none' // none or history
             }
         }
 
         var numOfRanges = options.ranges || 10,
-            maxValue = options.maxValue || 1,
-            minValue = options.minValue || 0,
-            hist = new Array(numOfRanges);
+            maxValue = options.maxValue || 300,
+            minValue = options.minValue || 30,
+            mode = options.mode || 'none',
+            hist = new Array(numOfRanges + 2),
+            history = [];
 
-        // fill the array with zeroes
-        hist = _.fill(hist, 0);
+        // initialize the histogram
+        clearHist();
+        //randomHistogram();
+
+        return {
+            submitResponse: submitResponse,
+            getRange: getRange,
+            changeResolution: changeResolution,
+            finalObj: finalObj
+        };
+
+        function randomHistogram() {
+            hist = hist.map(function (h) {
+                return h + Math.floor(Math.random() * 200) + 1;
+            });
+
+            hist[0] = Math.floor(Math.random() * 30) + 1;
+            hist[11] = Math.floor(Math.random() * 15) + 1;
+        }
 
         function submitResponse(time) {
+            if (time < minValue) {
+                hist[0]++;
+                return;
+            }
+
+            if (time > maxValue) {
+                hist[11]++;
+                return;
+            }
+
             var jumps = (maxValue - minValue) / numOfRanges;
 
             for (var i = 0; i < numOfRanges; i++) {
-                if (time < minValue + jumps * (i + 1) || i === numOfRanges - 1) {
-                    hist[i]++;
+                if (time < minValue + jumps * (i + 1)) {
+                    hist[i + 1]++;
                     break;
                 }
             }
@@ -36,8 +66,8 @@
             return hist;
         }
 
+        // clear the histogram
         function clearHist() {
-            console.log('clear');
             hist = _.fill(hist, 0);
         }
 
@@ -53,42 +83,73 @@
             }
 
             if (index === 1) {
+                var newRange = _getRangeFormHistory(index);
+                if (newRange) {
+                    return newRange;
+                }
+
                 if (min !== 0) {
                     min -= jumps;
+                    min = min < 0 ? 0 : min;
                 }
 
                 console.log("min: " + max, min, jumps);
                 return {max: max, min: min};
             }
 
-            if (index === numOfRanges) {
+            if (index === numOfRanges + 2) {
+                var newRange = _getRangeFormHistory(index);
+                if (newRange) {
+                    return newRange;
+                }
+
                 max += jumps;
 
                 console.log("max: " + max, min, jumps);
                 return {max: max, min: min};
             }
 
-            max = minValue + (jumps * (index));
+            max = minValue + (jumps * (index - 1));
             min = max - jumps;
 
             console.log("regular: " + max, min, jumps);
             return {max: max, min: min};
         }
 
+        function _saveHistory() {
+            history.splice(0, 0, {max: maxValue, min: minValue});
+        }
+
+        function _getRangeFormHistory(index) {
+            var returnValue = history.pop();
+
+            if (!returnValue) return false;
+
+            if (index === 1) {
+                if (minValue <= returnValue.min) {
+                    return _getRangeFormHistory(index);
+                } else {
+                    return {max: maxValue, min: returnValue.min};
+                }
+            } else if (index === numOfRanges + 2) {
+                if (maxValue >= returnValue.max) {
+                    return _getRangeFormHistory(index);
+                } else {
+                    return {max: returnValue.max, min: minValue};
+                }
+            }
+        }
+
         function changeResolution(newRange) {
+            _saveHistory();
+
             maxValue = newRange.max;
             minValue = newRange.min;
 
             // restart the histogram
             clearHist();
+            //randomHistogram();
         }
-
-        return {
-            submitResponse: submitResponse,
-            getRange: getRange,
-            changeResolution: changeResolution,
-            finalObj: finalObj
-        };
     }
 
     module.exports = Histogram;

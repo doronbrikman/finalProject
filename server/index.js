@@ -29,9 +29,18 @@ var nodeHists = {
     }
 };
 
+var webSocket;
+
 io.on('connection', function (socket) {
-    mySocket.addSocket(socket);
     console.log('Connected!');
+
+    socket.emit('check', {hello: 'world'});
+    socket.on('node', function () {
+        mySocket.addSocket(socket);
+    });
+    socket.on('web', function () {
+        webSocket = socket;
+    });
 });
 
 var count = 0;
@@ -39,10 +48,36 @@ var lastPercentile;
 
 var rangesTimeArray = [];
 
-app.post('/', function (req, res) {
-    var result = req.body;
+function initForcast() {
+    var date = new Date(),
+        value = 2000,
+        max;
 
-    rangesTimeArray.push({date: new Date(), max: result.ranges.max, min: result.ranges.min});
+    for (var i = 0; i < 200; i++) {
+        var newDate = date.setSeconds(date.getSeconds() + 5);
+
+        if (i < 10) {
+            max = value;
+        }
+        else if (i < 100) {
+            max = value - (i.toString().slice(0, 1) * 10);
+        }
+        else if (i < 200) {
+            max = value - (i.toString().slice(0, 2) * 10);
+        }
+
+        var min = 200;
+
+        rangesTimeArray.push({date: newDate, max: max, min: min});
+    }
+}
+
+for (var r = 0; r < 30; r++) {
+    initForcast();
+}
+
+function doForcast(range) {
+    rangesTimeArray.push({date: new Date(), max: range.max, min: range.min});
 
     var maxAnalysis = new timeseries.main(timeseries.adapter.fromDB(rangesTimeArray, {
         date: 'date',
@@ -54,18 +89,42 @@ app.post('/', function (req, res) {
         value: 'min'
     });
 
-    maxAnalysis.smoother({period: 4}).save('smoothed');
-    var bestSettings = maxAnalysis.regression_forecast_optimize();
+    maxAnalysis.smoother({period: 40}).save('smoothed');
 
-    console.log(bestSettings);
-
-    maxAnalysis.sliding_regression_forecast({
-        sample: bestSettings.sample,
-        degree: bestSettings.degree,
-        method: bestSettings.method
+    var coeffs = maxAnalysis.ARMaxEntropy({
+        data: maxAnalysis.data,
+        degree: 5000
     });
 
-    console.log(maxAnalysis);
+    var N = maxAnalysis.data.length;
+    console.log(coeffs);
+
+    if (maxAnalysis.data.length > 50 && coeffs[0]) {
+        var forecast = 0;
+        for (var i = 0; i < coeffs.length; i++) {
+            forecast -= maxAnalysis.data[N - 1 - i][1] * coeffs[i];
+        }
+        console.log("forecast", forecast);
+        webSocket.emit("forecast", {
+            realMax: maxAnalysis.original.slice(maxAnalysis.data.length - 400),
+            max: maxAnalysis.data.slice(maxAnalysis.data.length - 400),
+            forecast: forecast
+        });
+    }
+
+    return maxAnalysis;
+}
+
+app.get('/', function (req, res) {
+    //res.redirect(doForcast({max: 1810, min: 200}).ma({period: 14}).chart());
+});
+
+app.post('/', function (req, res) {
+    var result = req.body;
+
+    //var forcastChart = doForcast(result.ranges);
+
+    //webSocket.emit("data", {data: forcastChart.data.slice(forcastChart.data.length - 400)});
 
     if (!nodeHists.nodes[result.nodePort]) {
 
@@ -74,7 +133,7 @@ app.post('/', function (req, res) {
         for (var i = 0; i < result.histogram.length; i++) {
             nodeHists.superArray[i] = (nodeHists.superArray[i] || 0) + result.histogram[i];
         }
-        
+
         if (nodeHists.nodes.length === nodeNumber) {
             var sum = nodeHists.superArray.reduce(function (a, b) {
                 return a + b;
@@ -85,7 +144,7 @@ app.post('/', function (req, res) {
             for (var j = 0; j < nodeHists.superArray.length; j++) {
                 adder += nodeHists.superArray[j];
 
-                if (adder > sum * 0.60) {
+                if (adder > sum * 0.99) {
                     percentile = j + 1;
                     break;
                 }
@@ -104,17 +163,22 @@ app.post('/', function (req, res) {
     }
 
     console.log(result.nodePort + ": " + result.histogram);
+    webSocket.emit("forecast", {
+        timeAvg: result.timeAvg,
+        lastTime: result.lastTime,
+        resulotion: (result.ranges.max - result.ranges.min) / 10
+    });
 
     if (percentile) {
         console.log("The percentile is " + percentile);
 
         if (count === 10) {
-            var array = mySocket.getSockets();
+            var sockets = mySocket.getSockets();
             count = 0;
 
-            for (var h = 0; h < array.length; h++) {
-                array[h].emit("percentile", {percentile: percentile});
-            }
+            sockets.forEach(function (socket) {
+                socket.emit("percentile", {percentile: percentile});
+            });
         }
     }
 
