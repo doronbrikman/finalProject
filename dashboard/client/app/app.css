@@ -1,0 +1,21 @@
+body {
+  background-color: floralwhite;
+}
+.navbar-collapse {
+  overflow-y: visible;
+}
+.ct-chart-bar .ct-series.ct-series-a .ct-bar {
+  stroke: #5CBE7F
+}
+.ct-chart-bar .ct-series.ct-series-b .ct-bar {
+  stroke: #1B96B0
+}
+.ct-chart-bar .ct-series.ct-series-c .ct-bar {
+  stroke: #FF0000
+}
+.ct-label.ct-vertical.ct-start {
+  font-size: 1em;
+}
+.ct-chart-bar .ct-label.ct-horizontal.ct-end {
+  font-size: 1em;
+}

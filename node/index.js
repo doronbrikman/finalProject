@@ -41,6 +41,7 @@ socket.on('percentile', function (data) {
     var range = histogram.getRange(data.percentile);
     histogram.changeResolution(range);
 
+    console.log('---------------------------------');
     console.log("max:" + range.max + " | min: " + range.min);
 });
 
@@ -60,8 +61,32 @@ app.get('/', function (req, res) {
     res.send(histogram.finalObj() + " " + estimatePi());
 });
 
+var performanceCounter = 0;
+
 function estimatePi() {
-    var n = getRandomArbitrary(100000, 10000000), inside = 0, i, x, y;
+    performanceCounter++;
+    var small = 100000, big = 500000;
+
+    if (performanceCounter > 50 && performanceCounter < 80) {
+        small = 1000000;
+        big   = 5000000;
+    }
+
+    if (performanceCounter > 90 && performanceCounter < 120) {
+        small = 1000000;
+        big   = 5000000;
+    }
+
+    if (performanceCounter > 150) {
+        small = 10000000;
+        big   = 50000000;
+    }
+
+    if (performanceCounter > 160) {
+        performanceCounter = 0;
+    }
+
+    var n = getRandomArbitrary(small, big), inside = 0, i, x, y;
 
     for (i = 0; i < n; i++) {
         x = Math.random();
@@ -80,7 +105,6 @@ function estimatePi() {
 var count = 0;
 
 setInterval(function () {
-    console.log('send');
     var req = http.request(options);
     //req.write(JSON.stringify({nodePort: PORT, histogram: histogram.finalObj(), ranges: histogram.getRange()}));
 
@@ -104,7 +128,7 @@ setInterval(function () {
     countTime = 0;
 
     req.end();
-}, 1000);
+}, 500);
 
 app.listen(PORT);
 console.log('Running on http://localhost:' + PORT);

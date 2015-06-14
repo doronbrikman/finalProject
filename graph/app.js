@@ -1,29 +1,39 @@
-var socket = io('http://localhost:8080');
+var socket = io('http://10.0.0.10:8080');
 
 socket.on('check', function () {
     socket.emit('web', {my: 'data'});
 });
 
-var forecasts = new Array(400);
-
-_.fill(forecasts, null);
+//var forecasts = new Array(400);
+//
+//_.fill(forecasts, null);
 
 var labels = [];
 var times = [];
 var originals = [];
+var forecasts = [];
 
 socket.on('forecast', function (data) {
    var res = data.resulotion;
     var time = data.lastTime;
+    var fore = data.forecast;
 
     labels.push(new Date().toISOString().slice(11, 19));
     times.push(time);
     originals.push(res);
+    forecasts.push(fore);
+
+    if (times.length > 50) {
+        labels.splice(0, 1);
+        times.splice(0, 1);
+        originals.splice(0, 1);
+        forecasts.splice(0, 1);
+    }
 
     var chart = {
         labels: labels,
         series: [
-            times
+            times, forecasts
         ]
     };
 
@@ -84,8 +94,8 @@ socket.on('forecast', function (data) {
 //    new Chartist.Line('.ct-chart', chart, options);
 //});
 
-socket.on("forecast", function (data) {
-    var elm = document.getElementById("forecast");
-
-    elm.innerHTML = data;
-});
+//socket.on("forecast", function (data) {
+//    var elm = document.getElementById("forecast");
+//
+//    elm.innerHTML = data;
+//});

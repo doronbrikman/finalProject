@@ -7,14 +7,14 @@
         if (!options) {
             options = {
                 ranges: 10,
-                maxValue: 1000,
+                maxValue: 1300,
                 minValue: 30,
                 mode: 'none' // none or history
             }
         }
 
         var numOfRanges = options.ranges || 10,
-            maxValue = options.maxValue || 300,
+            maxValue = options.maxValue || 1300,
             minValue = options.minValue || 30,
             mode = options.mode || 'none',
             hist = new Array(numOfRanges + 2),
@@ -143,8 +143,8 @@
         function changeResolution(newRange) {
             _saveHistory();
 
-            maxValue = newRange.max;
-            minValue = newRange.min;
+            maxValue = Math.round(newRange.max);
+            minValue = Math.round(newRange.min);
 
             // restart the histogram
             clearHist();

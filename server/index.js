@@ -23,7 +23,7 @@ var nodeHists = {
         this.nodes = [];
         this.superArray = [];
 
-        for (var i = 0; i < 10; i++) {
+        for (var i = 0; i < 12; i++) {
             nodeHists.superArray[i] = 0;
         }
     }
@@ -73,58 +73,51 @@ function initForcast() {
 }
 
 for (var r = 0; r < 30; r++) {
-    initForcast();
+    //initForcast();
 }
 
-function doForcast(range) {
-    rangesTimeArray.push({date: new Date(), max: range.max, min: range.min});
+function doForcast(time) {
+    rangesTimeArray.push({date: new Date(), time: time});
 
-    var maxAnalysis = new timeseries.main(timeseries.adapter.fromDB(rangesTimeArray, {
+    var timeAnalysis = new timeseries.main(timeseries.adapter.fromDB(rangesTimeArray, {
         date: 'date',
-        value: 'max'
+        value: 'time'
     }));
 
-    var minAnalysis = new timeseries.main(rangesTimeArray, {
-        date: 'date',
-        value: 'min'
+    timeAnalysis.smoother({period: 40}).save('smoothed');
+
+    var N = timeAnalysis.data.length;
+
+    var coeffs = timeAnalysis.ARMaxEntropy({
+        data: timeAnalysis.data,
+        degree: N - 1
     });
 
-    maxAnalysis.smoother({period: 40}).save('smoothed');
-
-    var coeffs = maxAnalysis.ARMaxEntropy({
-        data: maxAnalysis.data,
-        degree: 5000
-    });
-
-    var N = maxAnalysis.data.length;
-    console.log(coeffs);
-
-    if (maxAnalysis.data.length > 50 && coeffs[0]) {
+    if (N > 50 && coeffs[0]) {
         var forecast = 0;
         for (var i = 0; i < coeffs.length; i++) {
-            forecast -= maxAnalysis.data[N - 1 - i][1] * coeffs[i];
+            forecast -= timeAnalysis.data[N - 1 - i][1] * coeffs[i];
         }
-        console.log("forecast", forecast);
-        webSocket.emit("forecast", {
-            realMax: maxAnalysis.original.slice(maxAnalysis.data.length - 400),
-            max: maxAnalysis.data.slice(maxAnalysis.data.length - 400),
-            forecast: forecast
-        });
-    }
+        //webSocket.emit("forecast", {
+        //    realMax: maxAnalysis.original.slice(maxAnalysis.data.length - 400),
+        //    max: maxAnalysis.data.slice(maxAnalysis.data.length - 400),
+        //    forecast: forecast
+        //});
 
-    return maxAnalysis;
+        return forecast;
+    }
 }
 
 app.get('/', function (req, res) {
     //res.redirect(doForcast({max: 1810, min: 200}).ma({period: 14}).chart());
 });
 
+var returnHist = [];
+
 app.post('/', function (req, res) {
     var result = req.body;
 
-    //var forcastChart = doForcast(result.ranges);
-
-    //webSocket.emit("data", {data: forcastChart.data.slice(forcastChart.data.length - 400)});
+    var forecast = doForcast(result.lastTime);
 
     if (!nodeHists.nodes[result.nodePort]) {
 
@@ -158,6 +151,7 @@ app.post('/', function (req, res) {
                 count = 0;
             }
 
+            returnHist = nodeHists.superArray;
             nodeHists.clearNodes();
         }
     }
@@ -166,7 +160,8 @@ app.post('/', function (req, res) {
     webSocket.emit("forecast", {
         timeAvg: result.timeAvg,
         lastTime: result.lastTime,
-        resulotion: (result.ranges.max - result.ranges.min) / 10
+        resulotion: (result.ranges.max - result.ranges.min) / 10,
+        forecast: forecast || 0
     });
 
     if (percentile) {
@@ -175,6 +170,12 @@ app.post('/', function (req, res) {
         if (count === 10) {
             var sockets = mySocket.getSockets();
             count = 0;
+
+            webSocket.emit("histogram", {
+                histogram: result.histogram,
+                ranges: result.ranges,
+                percentile: percentile
+            });
 
             sockets.forEach(function (socket) {
                 socket.emit("percentile", {percentile: percentile});
